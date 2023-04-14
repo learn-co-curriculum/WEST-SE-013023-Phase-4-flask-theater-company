@@ -19,7 +19,10 @@ from werkzeug.exceptions import NotFound, Unauthorized
 from flask_cors import CORS
 
 # 1.✅ Import Bcrypt form flask_bcrypt
-    #1.1 Invoke Bcrypt and pass it app
+    #1.1 Create config.py and inport Bcrypt there
+    #1.2 Move other imports and configs to config py
+    #1.3 Invoke Bcrypt and pass it app on config.py
+    #1.4 Do required import from config.py to app.py and models.py
 from flask_bcrypt import Bcrypt
 
 
@@ -42,6 +45,7 @@ app.secret_key = b'@~xH\xf2\x10k\x07hp\x85\xa6N\xde\xd4\xcd'
 migrate = Migrate(app, db)
 db.init_app(app)
 
+# monkeypatch flask-rest Api class to bypass its error routing
 api = Api(app)
 
 class Productions(Resource):
@@ -138,7 +142,22 @@ api.add_resource(ProductionByID, '/productions/<int:id>')
         #10.2.5 Add the user id to session under the key of user_id
         #10.2.6 send the new user back to the client with a status of 201
     #10.3 Test out your route with the client or Postman
+class Signup(Resource):
+    def post(self):
+        form_json = request.get_json()
+        new_user = User(name=form_json['name'], email=form_json['email'])
+        #Hashes our password and saves it to _password_hash
+        # new_user.password_hash = form_json['password']
 
+        db.session.add(new_user)
+        db.session.commit()
+
+        response = make_response(
+            new_user.to_dict(),
+            201
+        )
+        return response
+api.add_resource(Signup, '/signup')
 
 # User.query.order_by(User.id.desc()).first()._password_hash
 
@@ -150,7 +169,22 @@ api.add_resource(ProductionByID, '/productions/<int:id>')
         #11.2.3 Create a response to the client with the user's data
 
 #12 Head to client/components/authenticate 
+class Login(Resource):
+    def post(self):
+        try:
+            user = User.query.filter_by(name=request.get_json()['name']).first()
+            # add password authentication to user
+            if user:
+                session['user_id'] = user.id
+                response = make_response(
+                    user.to_dict(),
+                    200
+                )
+                return response
+        except:
+            abort(401, "Incorrect Username or Password")
 
+api.add_resource(Login, '/login')
 
 # 13.✅ Create a route that checks to see if the User is currently in sessions
     # 13.1 Use add_resource to add an authorized endpoint
@@ -158,7 +192,19 @@ api.add_resource(ProductionByID, '/productions/<int:id>')
         #13.2.1 Check to see if the user_id is in session
         #13.2.2 If found query the user and send it to the client
         #13.2.3 If not found return a 401 Unauthorized error
+class AuthorizedSession(Resource):
+    def get(self):
+        try:
+            user = User.query.filter_by(id=session['user_id']).first()
+            response = make_response(
+                user.to_dict(),
+                200
+            )
+            return response
+        except:
+            abort(401, "Unauthorized")
 
+api.add_resource(AuthorizedSession, '/authorized')
 
 # 14.✅ Create a Logout route
     #14.1 Use add_resource to add a logout endpoint
@@ -166,6 +212,13 @@ api.add_resource(ProductionByID, '/productions/<int:id>')
         # 14.2.1 Set the user_id in sessions to None
         # 14.2.1 Create a response with no content and a 204
     #14.3 Test out your route with the client or Postman
+
+class Logout(Resource):
+    def delete(self):
+        session['user_id'] = None 
+        response = make_response('',204)
+        return response
+api.add_resource(Logout, '/logout')
 
 # 14.✅ Navigate to client navigation
 
