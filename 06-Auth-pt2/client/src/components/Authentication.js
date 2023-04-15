@@ -7,13 +7,16 @@ import * as yup from "yup"
 
 function Authentication({updateUser}) {
   const [signUp, setSignUp] = useState(false)
+  // adding state to hold errors
+  const [errors, setErrors] = useState(null)
   
   const history = useHistory()
 
   const handleClick = () => setSignUp((signUp) => !signUp)
   const formSchema = yup.object().shape({
     name: yup.string().required("Please enter a user name"),
-    email: yup.string().email()
+    email: yup.string().email(),
+    password: yup.string().required("Please enter a password")
   })
 
   const formik = useFormik({
@@ -36,13 +39,14 @@ function Authentication({updateUser}) {
             res.json().then(user => {
               console.log(user)
               updateUser(user)
+              setErrors(null)
               history.push('/')
             })
           } else {
             //12✅ Handle user errors if Auth fails
               //12.1 add errors to state
               //12.2 conditionally render the errors in jsx
-            res.json().then(console.log)
+            res.json().then(setErrors)
           }
         })
        
@@ -51,7 +55,8 @@ function Authentication({updateUser}) {
 
     return (
         <> 
-        {"Render Errors Here"}
+        {Object.keys(formik.errors).map(input =>  <h2 style={{color: 'red'}}>{formik.errors[input]}</h2>)}
+        {errors && <h2 style={{color: 'red'}}>{errors.error}</h2>}
         <h2>Please Log in or Sign up!</h2>
         <h2>{signUp?'Already a member?':'Not a member?'}</h2>
         <button onClick={handleClick}>{signUp?'Log In!':'Register now!'}</button>

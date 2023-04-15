@@ -12,41 +12,50 @@
      # In Terminal, run:
         # `honcho start -f Procfile.dev`
 
-from flask import Flask, request, make_response, session, jsonify, abort
-from flask_migrate import Migrate
-from flask_restful import Api, Resource
+from flask import request, make_response, session, jsonify, abort
+from flask_restful import Resource
 from werkzeug.exceptions import NotFound, Unauthorized
 from flask_cors import CORS
+
+from config import app, db, api
 
 # 1.✅ Import Bcrypt form flask_bcrypt
     #1.1 Create config.py and inport Bcrypt there
     #1.2 Move other imports and configs to config py
     #1.3 Invoke Bcrypt and pass it app on config.py
     #1.4 Do required import from config.py to app.py and models.py
-from flask_bcrypt import Bcrypt
+
 
 
 # 2.✅ Navigate to "models.py"
     # Continue on Step 3
 
-app = Flask(__name__)
+
 CORS(app) 
-bcrypt = Bcrypt(app)
-from models import db, Production, CastMember, User
 
+from models import Production, CastMember, User
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.json.compact = False
+# adding authorization check for backend routes
+# before_request decorator invokes its method before
+# each incoming request get routed to its view
+# endpoint names are derived from Resource class names below (but can also be explicity
+# given as arguments to api.add_resource())
+@app.before_request
+def check_if_logged_in():
+    # these are routes you DON'T want to protect! If a user had to be logged in
+    # in order to send a /login request... you see the problem!
+    open_access_list = [
+        'productions',
+        'signup',
+        'login',
+        'logout',
+        'authorized_session'
+    ]
 
-app.secret_key = b'@~xH\xf2\x10k\x07hp\x85\xa6N\xde\xd4\xcd'
+    if (request.endpoint) not in open_access_list and (not session.get('user_id')):
+        raise Unauthorized
+        # return {'error': '401 Unauthorized'}, 401
 
-
-migrate = Migrate(app, db)
-db.init_app(app)
-
-# monkeypatch flask-rest Api class to bypass its error routing
-api = Api(app)
 
 class Productions(Resource):
     def get(self):
@@ -147,17 +156,18 @@ class Signup(Resource):
         form_json = request.get_json()
         new_user = User(name=form_json['name'], email=form_json['email'])
         #Hashes our password and saves it to _password_hash
-        # new_user.password_hash = form_json['password']
+        new_user.password_hash = form_json['password']
 
         db.session.add(new_user)
         db.session.commit()
-
+        # Add new users id to session
+        session['user_id'] = new_user.id
         response = make_response(
             new_user.to_dict(),
             201
         )
         return response
-api.add_resource(Signup, '/signup')
+api.add_resource(Signup, '/signup', endpoint='signup')
 
 # User.query.order_by(User.id.desc()).first()._password_hash
 
@@ -171,18 +181,18 @@ api.add_resource(Signup, '/signup')
 #12 Head to client/components/authenticate 
 class Login(Resource):
     def post(self):
-        try:
             user = User.query.filter_by(name=request.get_json()['name']).first()
             # add password authentication to user
-            if user:
+            if user and user.authenticate(request.get_json()['password']):
                 session['user_id'] = user.id
                 response = make_response(
                     user.to_dict(),
                     200
                 )
                 return response
-        except:
-            abort(401, "Incorrect Username or Password")
+            else:
+                raise Unauthorized
+                # abort(401, "Incorrect Username or Password")
 
 api.add_resource(Login, '/login')
 
@@ -202,7 +212,8 @@ class AuthorizedSession(Resource):
             )
             return response
         except:
-            abort(401, "Unauthorized")
+            # abort(401, "Unauthorized")
+            raise Unauthorized
 
 api.add_resource(AuthorizedSession, '/authorized')
 
@@ -229,6 +240,14 @@ def handle_not_found(e):
         404
     )
 
+    return response
+
+@app.errorhandler(Unauthorized)
+def handle_unauthorized(e):
+    response = make_response(
+        {"error": "Unauthorized: you must be logged in to make that request."},
+        401
+    )
     return response
 
 
