@@ -12,7 +12,7 @@
      # In Terminal, run:
         # `honcho start -f Procfile.dev`
 
-from flask import request, make_response, session, jsonify, abort
+from flask import request, make_response, session, jsonify, abort, render_template
 from flask_restful import Resource
 from werkzeug.exceptions import NotFound, Unauthorized
 from flask_cors import CORS
@@ -40,22 +40,26 @@ from models import Production, CastMember, User
 # each incoming request get routed to its view
 # endpoint names are derived from Resource class names below (but can also be explicity
 # given as arguments to api.add_resource())
-@app.before_request
-def check_if_logged_in():
-    # these are routes you DON'T want to protect! If a user had to be logged in
-    # in order to send a /login request... you see the problem!
-    open_access_list = [
-        'productions',
-        'signup',
-        'login',
-        'logout',
-        'authorized_session'
-    ]
+# @app.before_request
+# def check_if_logged_in():
+#     # these are routes you DON'T want to protect! If a user had to be logged in
+#     # in order to send a /login request... you see the problem!
+#     open_access_list = [
+#         'productions',
+#         'signup',
+#         'login',
+#         'logout',
+#         'authorized_session'
+#     ]
 
-    if (request.endpoint) not in open_access_list and (not session.get('user_id')):
-        raise Unauthorized
+#     if (request.endpoint) not in open_access_list and (not session.get('user_id')):
+#         raise Unauthorized
         # return {'error': '401 Unauthorized'}, 401
 
+@app.route('/')
+@app.route('/<int:id>')
+def index(id=0):
+    return render_template("index.html")
 
 class Productions(Resource):
     def get(self):
