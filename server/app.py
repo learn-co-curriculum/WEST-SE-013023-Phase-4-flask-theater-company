@@ -40,20 +40,20 @@ from models import Production, CastMember, User
 # each incoming request get routed to its view
 # endpoint names are derived from Resource class names below (but can also be explicity
 # given as arguments to api.add_resource())
-# @app.before_request
-# def check_if_logged_in():
-#     # these are routes you DON'T want to protect! If a user had to be logged in
-#     # in order to send a /login request... you see the problem!
-#     open_access_list = [
-#         'productions',
-#         'signup',
-#         'login',
-#         'logout',
-#         'authorized_session'
-#     ]
+@app.before_request
+def check_if_logged_in():
+    # these are routes you DON'T want to protect! If a user had to be logged in
+    # in order to send a /login request... you see the problem!
+    open_access_list = [
+        'productions',
+        'signup',
+        'login',
+        'logout',
+        'authorized_session'
+    ]
 
-#     if (request.endpoint) not in open_access_list and (not session.get('user_id')):
-#         raise Unauthorized
+    if (request.endpoint) not in open_access_list and (not session.get('user_id')):
+        raise Unauthorized
         # return {'error': '401 Unauthorized'}, 401
 
 @app.route('/')
