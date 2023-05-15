@@ -49,7 +49,9 @@ def check_if_logged_in():
         'signup',
         'login',
         'logout',
-        'authorized_session'
+        'authorizedsession',
+        'index',
+        'static'
     ]
 
     if (request.endpoint) not in open_access_list and (not session.get('user_id')):
